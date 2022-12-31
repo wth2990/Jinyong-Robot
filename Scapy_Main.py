@@ -36,9 +36,9 @@ class operation(object):
             else:
                 new_string = new_string + data_string[char_index];
                 
-        if sr_flag == "S":
+        if sr_flag == "S":      #send
             print("==> " + new_string.upper())
-        elif sr_flag == "R":
+        elif sr_flag == "R":    #receive
             print("<== " + new_string.upper())
 
         if new_string != "" and display != None:
@@ -112,7 +112,7 @@ class operation(object):
             for i in range(0,len(pos)):
                 if i < len(pos) - 1:
                     if input[pos[i]+4:pos[i+1]] != "" and input[pos[i]+4:pos[i+1]] != None:
-                        operation.print(input[pos[i]+4:pos[i+1]],sr_flag)
+                        operation.print(input[pos[i]+4:pos[i+1]],sr_flag,None)
                 else:
                     return input[pos[i]+4:]
 
@@ -174,10 +174,10 @@ accepted = {}
 #YOUR_IP = '10.0.0.1'
 FILTER = "host 210.242.243.179"
 '''
-src:152.77.153.188
+src:172.20.10.6
 dst:210.242.243.179
 src:210.242.243.179
-dst:152.77.153.188
+dst:172.20.10.6
 '''
 def handshake_status(packet):
     global packets,accepted,packet_count
@@ -191,13 +191,14 @@ def handshake_status(packet):
     src_ip = packet[0][1].src
     dst_ip = packet[0][1].dst
     tcp_dport=packet[0][1].dport#6732
-    if src_ip == "152.77.153.188":
+    #print("A - from IP: " + src_ip);
+    if src_ip == "172.20.10.6":
         sr_flag = "S";#Send;
-        print("Dest Port: " + str(tcp_dport))
-        #print("Send!");
+        #print("Dest Port: " + str(tcp_dport))
+        #print("==>");
     elif src_ip == "210.242.243.179":
         sr_flag = "R";
-        #print("Received!");
+        #print("<==");
     else:
         sr_flag = "N";
     hex_a = data.hex()
@@ -206,21 +207,27 @@ def handshake_status(packet):
     binary_a = binascii.unhexlify(hex_a)
 
     if flag == 'P':
-        print("P");
+        print("--- flag: " + flag)
+        data_string = data.hex();
+        operation.print(data_string,sr_flag,None);
     elif flag == 'PA':
-        print("--- PA ---");
+        print("--- flag: " + flag)
         data_string = data.hex();
         #print("--- Xor ---")
         data = operation.locate_data(data_string,sr_flag)
         key = operation.get_change_key(data);
         decoded_data = operation.xor_strings(key,data);
         operation.cut_head(decoded_data,sr_flag);
+        print("Raw:")
+        operation.print(data_string,sr_flag,None);
+        print("Decoded:")
+        operation.print(decoded_data,sr_flag,None);
     elif flag == 'A':
         Nonething = ""
     else:
         print("--- flag: " + flag)
         data_string = data.hex();
-        operation.print(data_string,sr_flag);
+        operation.print(data_string,sr_flag,None);
 
 
 def scapy_function():
@@ -233,31 +240,66 @@ def pop_data():
             the_flag = operation.data[1].pop(0);
             #print(type(the_str))# + " -- " + type(the_flag)
             if not isinstance(the_str, int):
-                operation.print(the_str,the_flag);
+                operation.print(the_str,the_flag,None);
 
 def the_send():
     # VARIABLES
-    src = "152.77.153.188"#sys.argv[1]
-    dst = "210.242.243.179"#sys.argv[2]
+    src_local = "172.20.10.6"#sys.argv[1]
+    dst_local = "210.242.243.179"#sys.argv[2]
     sport = 59474
     dport = 6732#int(sys.argv[3])
 
+    import socket
+    '''
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #p=IP(dst=dst_local)/TCP(flags="S", sport=sport, dport=dport)
+    s.connect((dst_local,dport))
+    #s.send(p)'''
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((dst_local,dport))
+        s.sendall(bytes.fromhex('6BDB8B9E9C1A939FFAD8959FA8CBD2AECBD1C8AB'))
+        data = s.recv(1024)
+        print("Received {data!r}")
+        s.sendall(bytes.fromhex('DE6E6B5E281EFB112A7DCB332A995D3F2A0C46092A20E0292A7E7D282AEFDC2B2A1E492A2A1A19222AFA452A2A8D552A2A5BB02B2A3B53292ABD7B0A2A17B4212A'))
+        data = s.recv(1024)
+        print("Received {data!r}")
+
+        
+    
+
+    '''
     # SYN
-    ip=IP(src=src,dst=dst)
+    ip=IP(src=src_local,dst=dst_local)
     SYN=TCP(sport=sport,dport=dport,flags='S',seq=1000)
     SYNACK=sr1(ip/SYN)
 
     # ACK
     ACK=TCP(sport=sport, dport=dport, flags='A', seq=SYNACK.ack, ack=SYNACK.seq + 1)
     send(ip/ACK)
-
+    '''
 if __name__ == '__main__':
     import threading
     _ui = UI();
     x = threading.Thread(target=scapy_function)
     x.start()
-    the_send();
     '''
     y = threading.Thread(target=pop_data)
-    y.start()'''
+    y.start()
+    '''
     _ui.start();
+    #the_send();
+'''
+
+==> 31-12-2022, 02:43:29:   C6 11 1A 4C BB 9B 3E 90 F3 88 B6 23 50 18 04 04 78 0A 00 00 98 28 2D 18 6E 58 BD 57 6C 3B 8D 75 6C DF 1B 79 6C 4A 00 4F 6C 66 A6 6F 6C 38 3B 6E 6C A9 9A 6D 6C 58 0F 6C 6C 5C 5F 64 
+6C BC 03 6C 6C CB 13 6C 6C 1D F6 6D 6C 7D 15 6F 6C FB 3D 4C 6C 51 F2 67 6C
+Decoded:
+==> 31-12-2022, 02:43:29:   F4 44 41 74 02 34 D1 3B 00 57 E1 19 00 B3 77 15 00 26 6C 23 00 0A CA 03 00 54 57 02 00 C5 F6 01 00 34 63 00 00 30 33 08 00 D0 6F 00 00 A7 7F 00 00 71 9A 01 00 11 79 03 00 97 51 20 
+00 3D 9E 0B 00
+
+Raw:
+==> 31-12-2022, 02:46:41:   C6 17 1A 4C A5 FA 0E 73 DA 32 90 4A 50 18 04 04 6F 83 00 00 DE 6E 6B 5E 28 1E FB 11 2A 7D CB 33 2A 99 5D 3F 2A 0C 46 09 2A 20 E0 29 2A 7E 7D 28 2A EF DC 2B 2A 1E 49 2A 2A 1A 19 22 
+2A FA 45 2A 2A 8D 55 2A 2A 5B B0 2B 2A 3B 53 29 2A BD 7B 0A 2A 17 B4 21 2A
+Decoded:
+==> 31-12-2022, 02:46:41:   F4 44 41 74 02 34 D1 3B 00 57 E1 19 00 B3 77 15 00 26 6C 23 00 0A CA 03 00 54 57 02 00 C5 F6 01 00 34 63 00 00 30 33 08 00 D0 6F 00 00 A7 7F 00 00 71 9A 01 00 11 79 03 00 97 51 20 
+00 3D 9E 0B 00
+''' 
